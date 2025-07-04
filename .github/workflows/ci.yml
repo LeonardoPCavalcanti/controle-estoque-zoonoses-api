@@ -14,7 +14,7 @@ jobs:
   # Job 1: Instala as dependências e as prepara para os outros jobs.
   # -----------------------------------------------------------------
   build:
-    name: Build e Instalar Dependências
+    name: Build e Instalação de Dependências
     runs-on: ubuntu-latest
     steps:
       - name: Checkout do código
