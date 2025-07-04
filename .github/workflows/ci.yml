@@ -1,0 +1,63 @@
+# Nome do seu workflow.
+name: CI - Testes da API
+
+# Gatilhos: Define quando este workflow deve rodar.
+on:
+  # Roda em todo 'push' para as branches 'main', 'master' ou 'dev'.
+  push:
+    branches: [ main, master, dev ]
+  # Roda em toda abertura ou atualização de 'pull request' para essas branches.
+  pull_request:
+    branches: [ main, master, dev ] 
+
+# Trabalhos: Define uma ou mais tarefas a serem executadas.
+jobs:
+  build-and-test:
+    # Máquina Virtual: Especifica que o trabalho rodará em uma máquina Ubuntu.
+    runs-on: ubuntu-latest
+
+    # Serviços: Inicia um banco de dados PostgreSQL temporário para os testes.
+    services:
+      postgres:
+        image: postgres:14-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password_para_teste
+          POSTGRES_DB: zoonoses_test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    # Passos: A sequência de ações que o nosso trabalho executará.
+    steps:
+      # Passo 1: Baixar o código do seu repositório
+      - name: Checkout do código
+        uses: actions/checkout@v3
+
+      # Passo 2: Configurar o ambiente Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      # Passo 3: Instalar as dependências do projeto
+      - name: Instalar dependências
+        run: npm install
+        working-directory: ./controle-estoque-zoonoses-api
+
+      # Passo 4: Rodar os testes
+      - name: Rodar os testes (integração e unidade)
+        env:
+          CI: true
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USER: postgres
+          DB_NAME: zoonoses_test_db
+          DB_PASS: postgres
+          APP_SECRET: segredo_para_testes_no_ci
+        run: npm test
+        working-directory: ./controle-estoque-zoonoses-api
