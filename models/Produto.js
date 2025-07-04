@@ -12,6 +12,18 @@ const Produto = sequelize.define('Produto', {
     quantidade: {
         type: DataTypes.INTEGER,
         defaultValue: 0
+    },
+    categoriaId: {
+        type: DataTypes.INTEGER,
+        allowNull: false
+    },
+    fornecedorId: {
+        type: DataTypes.INTEGER,
+        allowNull: false
+    },
+    setorId: {
+        type: DataTypes.INTEGER,
+        allowNull: false
     }
 });
 
