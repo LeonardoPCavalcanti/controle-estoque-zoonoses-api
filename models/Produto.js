@@ -16,17 +16,14 @@ const Produto = sequelize.define('Produto', {
   CategoriaId: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    references: { model: 'Categorias', key: 'id' },
   },
   FornecedorId: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    references: { model: 'Fornecedors', key: 'id' }, // Sequelize pluraliza automaticamente
   },
   SetorId: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    references: { model: 'Setors', key: 'id' }, // idem acima
   },
 });
 
