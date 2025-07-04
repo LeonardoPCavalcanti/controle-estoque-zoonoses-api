@@ -1,26 +1,20 @@
 const request = require('supertest');
 const bcrypt = require('bcrypt');
-const app = require('../../app'); 
-const { sequelize } = require('../../models'); 
+const app = require('../../app');
+const { sequelize } = require('../../models');
+const { Usuario, Produto, Categoria, Fornecedor, Setor } = require('../../models');
 
-
-// Importamos o modelo Categoria junto com os outros
-const { Usuario, Categoria } = require('../../models');
-
-// Descreve a suíte de testes para as rotas de Categorias
-describe('Integration Tests for /api/categorias Routes', () => {
-  // Variáveis para guardar os tokens e os dados de teste
+describe('Integration Tests for /api/produtos Routes', () => {
   let adminToken;
   let leitorToken;
-  let categoriaTeste;
+  let produtoTeste;
+  let categoria;
+  let fornecedor;
+  let setor;
 
-  // Bloco que roda UMA VEZ ANTES de todos os testes neste arquivo
   beforeAll(async () => {
-    // Garante um ambiente limpo, apagando e recriando as tabelas
     await sequelize.sync({ force: true });
 
-    // --- ARRANGE (Preparação) ---
-    // Criamos os mesmos usuários de teste que usamos antes
     const hashedPassword = await bcrypt.hash('admin123', 10);
 
     await Usuario.bulkCreate([
@@ -38,10 +32,19 @@ describe('Integration Tests for /api/categorias Routes', () => {
       },
     ]);
 
-    // Criamos uma categoria "semente" para usar nos testes de GET por id, PUT e DELETE
-    categoriaTeste = await Categoria.create({ nome: 'Medicamentos' });
+    categoria = await Categoria.create({ nome: 'Medicamentos' });
+    fornecedor = await Fornecedor.create({ nome: 'Fornecedor A', contato: '123456789' });
+    setor = await Setor.create({ nome: 'Setor Teste' });
 
-    // Fazemos login com os usuários para obter tokens JWT
+    produtoTeste = await Produto.create({
+      nome: 'Gaze Estéril',
+      descricao: 'Pacote com 50 unidades',
+      quantidade: 150,
+      CategoriaId: categoria.id,
+      FornecedorId: fornecedor.id,
+      SetorId: setor.id
+    });
+
     const loginAdmin = await request(app)
       .post('/api/usuarios/login')
       .send({ email: 'admin@teste.com', senha: 'admin123' });
@@ -53,72 +56,108 @@ describe('Integration Tests for /api/categorias Routes', () => {
     leitorToken = loginLeitor.body.token;
   });
 
-  // Bloco que roda UMA VEZ APÓS todos os testes para limpar a conexão
   afterAll(async () => {
     await sequelize.close();
   });
 
-  // --- Testes para a rota POST /api/categorias ---
-  describe('POST /api/categorias', () => {
-    it('should create a new category when user is an admin', async () => {
+  describe('POST /api/produtos', () => {
+    it('should create a new product when user has "admin" role', async () => {
       const response = await request(app)
-        .post('/api/categorias')
+        .post('/api/produtos')
         .set('Authorization', `Bearer ${adminToken}`)
-        .send({ nome: 'Material de Escritório' });
+        .send({
+          nome: 'Seringa 5ml',
+          descricao: 'Caixa com 100 unidades',
+          quantidade: 200,
+          categoriaId: categoria.id,
+          fornecedorId: fornecedor.id,
+          setorId: setor.id
+        });
 
       expect(response.status).toBe(201);
       expect(response.body).toHaveProperty('id');
-      expect(response.body.nome).toBe('Material de Escritório');
+      expect(response.body.nome).toBe('Seringa 5ml');
     });
 
-    it('should return 403 Forbidden when user is not an admin', async () => {
+    it('should return 403 Forbidden when user does not have permission', async () => {
       const response = await request(app)
-        .post('/api/categorias')
+        .post('/api/produtos')
         .set('Authorization', `Bearer ${leitorToken}`)
-        .send({ nome: 'Tentativa Ilegal' });
+        .send({
+          nome: 'Tentativa Ilegal',
+          categoriaId: categoria.id,
+          fornecedorId: fornecedor.id,
+          setorId: setor.id
+        });
 
       expect(response.status).toBe(403);
     });
+
+    it('should return 401 Unauthorized when no token is provided', async () => {
+      const response = await request(app)
+        .post('/api/produtos')
+        .send({
+          nome: 'Tentativa sem Token',
+          categoriaId: categoria.id,
+          fornecedorId: fornecedor.id,
+          setorId: setor.id
+        });
+
+      expect(response.status).toBe(401);
+    });
   });
 
-  // --- Testes para a rota GET /api/categorias ---
-  describe('GET /api/categorias', () => {
-    it('should return a list of categories for any authenticated user', async () => {
+  describe('GET /api/produtos', () => {
+    it('should return a list of products for any authenticated user', async () => {
       const response = await request(app)
-        .get('/api/categorias')
+        .get('/api/produtos')
         .set('Authorization', `Bearer ${leitorToken}`);
 
       expect(response.status).toBe(200);
       expect(Array.isArray(response.body)).toBe(true);
-      // Esperamos que a lista contenha a categoria que criamos no setup
-      expect(response.body.some(cat => cat.nome === 'Medicamentos')).toBe(true);
+      expect(response.body.length).toBeGreaterThan(0);
     });
 
-    it('should return a single category by id', async () => {
+    it('should return a single product by id for any authenticated user', async () => {
       const response = await request(app)
-        .get(`/api/categorias/${categoriaTeste.id}`)
+        .get(`/api/produtos/${produtoTeste.id}`)
         .set('Authorization', `Bearer ${adminToken}`);
 
       expect(response.status).toBe(200);
-      expect(response.body.id).toBe(categoriaTeste.id);
+      expect(response.body.id).toBe(produtoTeste.id);
+      expect(response.body.nome).toBe('Gaze Estéril');
+    });
+
+    it('should return 401 Unauthorized when no token is provided', async () => {
+      const response = await request(app).get('/api/produtos');
+      expect(response.status).toBe(401);
     });
   });
 
-  // --- Testes para a rota PUT /api/categorias/:id ---
-  describe('PUT /api/categorias/:id', () => {
-    it('should update a category when user is an admin', async () => {
+  describe('PUT /api/produtos/:id', () => {
+    it('should update a product when user has "admin" role', async () => {
       const response = await request(app)
-        .put(`/api/categorias/${categoriaTeste.id}`)
+        .put(`/api/produtos/${produtoTeste.id}`)
         .set('Authorization', `Bearer ${adminToken}`)
-        .send({ nome: 'Medicamentos Controlados' });
+        .send({
+          nome: 'Gaze Estéril (Atualizada)',
+          quantidade: 125,
+          categoriaId: categoria.id,
+          fornecedorId: fornecedor.id,
+          setorId: setor.id
+        });
 
       expect(response.status).toBe(200);
-      expect(response.body.nome).toBe('Medicamentos Controlados');
+      expect(response.body.nome).toBe('Gaze Estéril (Atualizada)');
+      expect(response.body.quantidade).toBe(125);
+
+      const productInDb = await Produto.findByPk(produtoTeste.id);
+      expect(productInDb.nome).toBe('Gaze Estéril (Atualizada)');
     });
 
-    it('should return 403 Forbidden when user is not an admin', async () => {
+    it('should return 403 Forbidden when user does not have permission', async () => {
       const response = await request(app)
-        .put(`/api/categorias/${categoriaTeste.id}`)
+        .put(`/api/produtos/${produtoTeste.id}`)
         .set('Authorization', `Bearer ${leitorToken}`)
         .send({ nome: 'Tentativa Ilegal' });
 
@@ -126,29 +165,32 @@ describe('Integration Tests for /api/categorias Routes', () => {
     });
   });
 
-  // --- Testes para a rota DELETE /api/categorias/:id ---
-  describe('DELETE /api/categorias/:id', () => {
-    it('should delete a category when user is an admin', async () => {
-      // Primeiro, criamos uma categoria nova só para este teste de deleção
-      const categoriaParaDeletar = await Categoria.create({ nome: 'Para Deletar' });
-
+  describe('DELETE /api/produtos/:id', () => {
+    it('should return 403 Forbidden when user does not have permission', async () => {
       const response = await request(app)
-        .delete(`/api/categorias/${categoriaParaDeletar.id}`)
-        .set('Authorization', `Bearer ${adminToken}`);
-
-      expect(response.status).toBe(200); // ou 204, dependendo da sua implementação
-
-      // Verificação extra: confirma que a categoria foi removida do banco
-      const categoryInDb = await Categoria.findByPk(categoriaParaDeletar.id);
-      expect(categoryInDb).toBeNull();
-    });
-
-    it('should return 403 Forbidden when user is not an admin', async () => {
-      const response = await request(app)
-        .delete(`/api/categorias/${categoriaTeste.id}`)
+        .delete(`/api/produtos/${produtoTeste.id}`)
         .set('Authorization', `Bearer ${leitorToken}`);
 
       expect(response.status).toBe(403);
+    });
+
+    it('should delete a product when user has "admin" role', async () => {
+      const response = await request(app)
+        .delete(`/api/produtos/${produtoTeste.id}`)
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(200);
+
+      const productInDb = await Produto.findByPk(produtoTeste.id);
+      expect(productInDb).toBeNull();
+    });
+
+    it('should return 404 Not Found when trying to delete a non-existent product', async () => {
+      const response = await request(app)
+        .delete(`/api/produtos/99999`)
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(404);
     });
   });
 });
