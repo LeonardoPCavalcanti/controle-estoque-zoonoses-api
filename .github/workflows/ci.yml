@@ -43,10 +43,10 @@ jobs:
           path: node_modules/
 
   # -----------------------------------------------------------------
-  # Job 2: Roda apenas os testes unitários.
+  # Job 2: Roda apenas os testes de unidade.
   # -----------------------------------------------------------------
   unit-tests:
-    name: Testes Unitários
+    name: Testes de Unidade
     runs-on: ubuntu-latest
     needs: build # Depende do job 'build'.
     steps:
