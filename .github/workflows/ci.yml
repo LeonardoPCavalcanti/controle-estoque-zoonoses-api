@@ -3,12 +3,10 @@ name: CI - Testes da API
 
 # Gatilhos: Define quando este workflow deve rodar.
 on:
-  # Roda em todo 'push' para as branches 'main', 'master' ou 'dev'.
   push:
     branches: [ main, master, dev ]
-  # Roda em toda abertura ou atualização de 'pull request' para essas branches.
   pull_request:
-    branches: [ main, master, dev ] 
+    branches: [ main, master, dev ]
 
 # Trabalhos: Define uma ou mais tarefas a serem executadas.
 jobs:
@@ -47,17 +45,16 @@ jobs:
       # Passo 3: Instalar as dependências do projeto
       - name: Instalar dependências
         run: npm install
-        working-directory: ./controle-estoque-zoonoses-api
 
       # Passo 4: Rodar os testes
       - name: Rodar os testes (integração e unidade)
         env:
           CI: true
-          DB_HOST: localhost
+          DB_HOST: localhost # O serviço 'postgres' está disponível em localhost na máquina virtual
           DB_PORT: 5432
           DB_USER: postgres
           DB_NAME: zoonoses_test_db
           DB_PASS: postgres
           APP_SECRET: segredo_para_testes_no_ci
+        # ✅ CORREÇÃO: O comando agora roda na raiz do projeto.
         run: npm test
-        working-directory: ./controle-estoque-zoonoses-api
