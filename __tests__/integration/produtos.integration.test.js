@@ -3,7 +3,7 @@ const bcrypt = require('bcrypt');
 const app = require('../../app');
 const { sequelize } = require('../../models');
 const { Usuario, Produto, Categoria, Fornecedor, Setor } = require('../../models');
-
+// Descreve a suíte de testes para as rotas de Produtos
 describe('Integration Tests for /api/produtos Routes', () => {
   let adminToken;
   let leitorToken;
