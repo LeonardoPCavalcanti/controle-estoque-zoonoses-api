@@ -1,8 +1,8 @@
 const request = require('supertest');
 const bcrypt = require('bcrypt');
-const app = require('../app'); // ⬅️ Importa sua aplicação Express principal
-const { sequelize } = require('../models'); // ⬅️ Importa o Sequelize para controlar o banco
-const { Usuario, Produto } = require('../models'); // ⬅️ Importa os modelos corretos
+const app = require('../../app'); 
+const { sequelize } = require('../../models'); 
+const { Usuario, Produto } = require('../../models');
 
 // Descreve a suíte de testes para as rotas de Produtos
 describe('Integration Tests for /api/produtos Routes', () => {

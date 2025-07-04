@@ -1,9 +1,11 @@
 const request = require('supertest');
 const bcrypt = require('bcrypt');
-const app = require('../app');
-const { sequelize } = require('../models');
+const app = require('../../app'); 
+const { sequelize } = require('../../models'); 
+
+
 // Importamos o modelo Categoria junto com os outros
-const { Usuario, Categoria } = require('../models');
+const { Usuario, Categoria } = require('../../models');
 
 // Descreve a suíte de testes para as rotas de Categorias
 describe('Integration Tests for /api/categorias Routes', () => {

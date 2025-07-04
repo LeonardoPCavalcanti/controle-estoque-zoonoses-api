@@ -1,20 +1,79 @@
 # Nome do seu workflow.
-name: CI - Testes da API
+name: CI - Pipeline Completo da API
 
-# Gatilhos: Define quando este workflow deve rodar.
+# Gatilhos: Roda em pushes e pull requests para as branches principais.
 on:
   push:
     branches: [ main, master, dev ]
   pull_request:
     branches: [ main, master, dev ]
 
-# Trabalhos: Define uma ou mais tarefas a serem executadas.
+# Define os jobs que serão executados.
 jobs:
-  build-and-test:
-    # Máquina Virtual: Especifica que o trabalho rodará em uma máquina Ubuntu.
+  # -----------------------------------------------------------------
+  # Job 1: Instala as dependências e as prepara para os outros jobs.
+  # -----------------------------------------------------------------
+  build:
+    name: Build e Instalar Dependências
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v3
 
-    # Serviços: Inicia um banco de dados PostgreSQL temporário para os testes.
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Cache das dependências npm
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Instalar dependências com npm ci
+        run: npm ci
+
+      - name: Salvar dependências como artefato
+        uses: actions/upload-artifact@v3
+        with:
+          name: node-modules-artifact
+          path: node_modules/
+
+  # -----------------------------------------------------------------
+  # Job 2: Roda apenas os testes unitários. É rápido e não precisa de banco.
+  # -----------------------------------------------------------------
+  unit-tests:
+    name: Testes Unitários
+    runs-on: ubuntu-latest
+    needs: build # Este job só roda se o job 'build' passar.
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Baixar artefato de dependências
+        uses: actions/download-artifact@v3
+        with:
+          name: node-modules-artifact
+          path: node_modules
+
+      - name: Rodar testes unitários
+        run: npx jest --testPathPattern=__tests__/unit/ --verbose
+
+  # -----------------------------------------------------------------
+  # Job 3: Roda os testes de integração, que precisam de um banco de dados.
+  # -----------------------------------------------------------------
+  integration-tests:
+    name: Testes de Integração
+    runs-on: ubuntu-latest
+    needs: build # Este job também depende do 'build'.
     services:
       postgres:
         image: postgres:14-alpine
@@ -22,39 +81,58 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: password_para_teste
           POSTGRES_DB: zoonoses_test_db
-        ports:
-          - 5432:5432
+        ports: ['5432:5432']
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-
-    # Passos: A sequência de ações que o nosso trabalho executará.
     steps:
-      # Passo 1: Baixar o código do seu repositório
       - name: Checkout do código
         uses: actions/checkout@v3
 
-      # Passo 2: Configurar o ambiente Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
 
-      # Passo 3: Instalar as dependências do projeto
-      - name: Instalar dependências
-        run: npm install
+      - name: Baixar artefato de dependências
+        uses: actions/download-artifact@v3
+        with:
+          name: node-modules-artifact
+          path: node_modules
 
-      # Passo 4: Rodar os testes
-      - name: Rodar os testes (integração e unidade)
+      - name: Rodar testes de integração
         env:
+          NODE_ENV: test
           CI: true
-          DB_HOST: localhost # O serviço 'postgres' está disponível em localhost na máquina virtual
+          DB_HOST: localhost
           DB_PORT: 5432
           DB_USER: postgres
           DB_NAME: zoonoses_test_db
           DB_PASS: postgres
           APP_SECRET: segredo_para_testes_no_ci
-        # ✅ CORREÇÃO: O comando agora roda na raiz do projeto.
-        run: npm test
+        run: npx jest --testPathPattern=__tests__/integration/ --runInBand --verbose
+
+  # -----------------------------------------------------------------
+  # Job 4: Tenta construir a imagem Docker se todos os testes passarem.
+  # -----------------------------------------------------------------
+  docker-build:
+    name: Build da Imagem Docker
+    runs-on: ubuntu-latest
+    # Este job só roda se AMBOS os jobs de teste passarem.
+    needs: [unit-tests, integration-tests]
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v3
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build da imagem Docker
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false # Importante: Apenas constrói, não envia para nenhum registro.
+          tags: zoonoses-api:test-build

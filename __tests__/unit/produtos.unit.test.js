@@ -1,6 +1,6 @@
 // 1. A simulação (mock) do módulo de modelos é declarada ANTES de qualquer importação.
 //    Isso garante que qualquer arquivo que importe '../models' receberá nossa versão falsa.
-jest.mock('../models', () => ({
+jest.mock('../../models', () => ({
   Produto: {
     findAll: jest.fn(),
     findByPk: jest.fn(),
@@ -14,9 +14,8 @@ jest.mock('../models', () => ({
 }));
 
 // 2. Agora importamos os módulos que vamos usar.
-const produtoController = require('../controllers/ProdutoController');
-const { Produto } = require('../models');
-
+const produtoController = require('../../controllers/ProdutoController');
+const { Produto } = require('../../models');
 // --- Início dos Testes ---
 
 describe('Unit Tests for ProdutoController', () => {

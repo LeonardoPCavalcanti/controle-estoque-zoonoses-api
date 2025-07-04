@@ -2,7 +2,7 @@
 jest.mock('jsonwebtoken');
 
 // 2. Agora, importamos os módulos que vamos usar.
-const autenticarToken = require('../middleware/authMiddleware');
+const autenticarToken = require('../../middleware/authMiddleware');
 const jwt = require('jsonwebtoken');
 
 // Descreve a suíte de testes para o authMiddleware
