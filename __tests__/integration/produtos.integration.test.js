@@ -2,13 +2,7 @@ const request = require('supertest');
 const bcrypt = require('bcrypt');
 const app = require('../../app');
 const { sequelize } = require('../../models');
-const {
-  Usuario,
-  Produto,
-  Categoria,
-  Fornecedor,
-  Setor
-} = require('../../models');
+const { Usuario, Produto, Categoria, Fornecedor, Setor } = require('../../models');
 
 describe('Integration Tests for /api/produtos Routes', () => {
   let adminToken;
@@ -39,14 +33,13 @@ describe('Integration Tests for /api/produtos Routes', () => {
     ]);
 
     categoria = await Categoria.create({ nome: 'Medicamentos' });
-    fornecedor = await Fornecedor.create({ nome: 'Fornecedor Teste' });
+    fornecedor = await Fornecedor.create({ nome: 'Fornecedor A', contato: '123456789' });
     setor = await Setor.create({ nome: 'Setor Teste' });
 
     produtoTeste = await Produto.create({
       nome: 'Gaze Estéril',
       descricao: 'Pacote com 50 unidades',
       quantidade: 150,
-      validade: new Date(),
       CategoriaId: categoria.id,
       FornecedorId: fornecedor.id,
       SetorId: setor.id
@@ -76,7 +69,6 @@ describe('Integration Tests for /api/produtos Routes', () => {
           nome: 'Seringa 5ml',
           descricao: 'Caixa com 100 unidades',
           quantidade: 200,
-          validade: '2025-12-31',
           categoriaId: categoria.id,
           fornecedorId: fornecedor.id,
           setorId: setor.id
@@ -102,12 +94,14 @@ describe('Integration Tests for /api/produtos Routes', () => {
     });
 
     it('should return 401 Unauthorized when no token is provided', async () => {
-      const response = await request(app).post('/api/produtos').send({
-        nome: 'Tentativa sem Token',
-        categoriaId: categoria.id,
-        fornecedorId: fornecedor.id,
-        setorId: setor.id
-      });
+      const response = await request(app)
+        .post('/api/produtos')
+        .send({
+          nome: 'Tentativa sem Token',
+          categoriaId: categoria.id,
+          fornecedorId: fornecedor.id,
+          setorId: setor.id
+        });
 
       expect(response.status).toBe(401);
     });
@@ -165,12 +159,7 @@ describe('Integration Tests for /api/produtos Routes', () => {
       const response = await request(app)
         .put(`/api/produtos/${produtoTeste.id}`)
         .set('Authorization', `Bearer ${leitorToken}`)
-        .send({
-          nome: 'Tentativa Ilegal',
-          categoriaId: categoria.id,
-          fornecedorId: fornecedor.id,
-          setorId: setor.id
-        });
+        .send({ nome: 'Tentativa Ilegal' });
 
       expect(response.status).toBe(403);
     });
