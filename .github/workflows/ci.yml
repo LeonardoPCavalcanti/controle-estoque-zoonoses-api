@@ -64,7 +64,6 @@ jobs:
           name: node-modules-artifact
           path: node_modules
 
-      # ✅ A SOLUÇÃO: Adiciona permissão de execução ao script do Jest.
       - name: Dar permissão de execução ao Jest
         run: chmod +x ./node_modules/.bin/jest
 
@@ -106,7 +105,6 @@ jobs:
           name: node-modules-artifact
           path: node_modules
 
-      # ✅ A SOLUÇÃO: Adiciona permissão de execução ao script do Jest.
       - name: Dar permissão de execução ao Jest
         run: chmod +x ./node_modules/.bin/jest
 
