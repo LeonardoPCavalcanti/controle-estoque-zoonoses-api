@@ -1,23 +1,26 @@
 const request = require('supertest');
 const bcrypt = require('bcrypt');
-const app = require('../../app'); 
-const { sequelize } = require('../../models'); 
-const { Usuario, Produto } = require('../../models');
+const app = require('../../app');
+const { sequelize } = require('../../models');
+const {
+  Usuario,
+  Produto,
+  Categoria,
+  Fornecedor,
+  Setor
+} = require('../../models');
 
-// Descreve a suíte de testes para as rotas de Produtos
 describe('Integration Tests for /api/produtos Routes', () => {
-  // Variáveis para guardar os tokens e os dados de teste
   let adminToken;
   let leitorToken;
   let produtoTeste;
+  let categoria;
+  let fornecedor;
+  let setor;
 
-  // Bloco que roda UMA VEZ ANTES de todos os testes neste arquivo
   beforeAll(async () => {
-    // Zera e recria as tabelas do banco de dados para garantir um ambiente limpo
     await sequelize.sync({ force: true });
 
-    // --- ARRANGE (Preparação) ---
-    // Criamos usuários de teste com cargos diferentes
     const hashedPassword = await bcrypt.hash('admin123', 10);
 
     await Usuario.bulkCreate([
@@ -35,14 +38,20 @@ describe('Integration Tests for /api/produtos Routes', () => {
       },
     ]);
 
-    // Criamos um produto "semente" para usar nos testes de GET, PUT e DELETE
+    categoria = await Categoria.create({ nome: 'Medicamentos' });
+    fornecedor = await Fornecedor.create({ nome: 'Fornecedor Teste' });
+    setor = await Setor.create({ nome: 'Setor Teste' });
+
     produtoTeste = await Produto.create({
       nome: 'Gaze Estéril',
       descricao: 'Pacote com 50 unidades',
       quantidade: 150,
+      validade: new Date(),
+      CategoriaId: categoria.id,
+      FornecedorId: fornecedor.id,
+      SetorId: setor.id
     });
 
-    // Fazemos login com nossos usuários de teste para obter tokens JWT válidos
     const loginAdmin = await request(app)
       .post('/api/usuarios/login')
       .send({ email: 'admin@teste.com', senha: 'admin123' });
@@ -54,12 +63,10 @@ describe('Integration Tests for /api/produtos Routes', () => {
     leitorToken = loginLeitor.body.token;
   });
 
-  // Bloco que roda UMA VEZ APÓS todos os testes para limpar a conexão
   afterAll(async () => {
     await sequelize.close();
   });
 
-  // --- Testes para a rota POST /api/produtos ---
   describe('POST /api/produtos', () => {
     it('should create a new product when user has "admin" role', async () => {
       const response = await request(app)
@@ -69,6 +76,10 @@ describe('Integration Tests for /api/produtos Routes', () => {
           nome: 'Seringa 5ml',
           descricao: 'Caixa com 100 unidades',
           quantidade: 200,
+          validade: '2025-12-31',
+          categoriaId: categoria.id,
+          fornecedorId: fornecedor.id,
+          setorId: setor.id
         });
 
       expect(response.status).toBe(201);
@@ -80,30 +91,37 @@ describe('Integration Tests for /api/produtos Routes', () => {
       const response = await request(app)
         .post('/api/produtos')
         .set('Authorization', `Bearer ${leitorToken}`)
-        .send({ nome: 'Tentativa Ilegal' });
+        .send({
+          nome: 'Tentativa Ilegal',
+          categoriaId: categoria.id,
+          fornecedorId: fornecedor.id,
+          setorId: setor.id
+        });
 
       expect(response.status).toBe(403);
     });
 
     it('should return 401 Unauthorized when no token is provided', async () => {
-      const response = await request(app)
-        .post('/api/produtos')
-        .send({ nome: 'Tentativa sem Token' });
+      const response = await request(app).post('/api/produtos').send({
+        nome: 'Tentativa sem Token',
+        categoriaId: categoria.id,
+        fornecedorId: fornecedor.id,
+        setorId: setor.id
+      });
 
       expect(response.status).toBe(401);
     });
   });
 
-  // --- Testes para a rota GET /api/produtos ---
   describe('GET /api/produtos', () => {
     it('should return a list of products for any authenticated user', async () => {
       const response = await request(app)
         .get('/api/produtos')
-        .set('Authorization', `Bearer ${leitorToken}`); // Usa o token do Leitor, que tem permissão
+        .set('Authorization', `Bearer ${leitorToken}`);
 
       expect(response.status).toBe(200);
       expect(Array.isArray(response.body)).toBe(true);
-      expect(response.body.length).toBeGreaterThan(0); // Deve haver pelo menos os produtos que criamos
+      expect(response.body.length).toBeGreaterThan(0);
     });
 
     it('should return a single product by id for any authenticated user', async () => {
@@ -122,7 +140,6 @@ describe('Integration Tests for /api/produtos Routes', () => {
     });
   });
 
-  // --- Testes para a rota PUT /api/produtos/:id ---
   describe('PUT /api/produtos/:id', () => {
     it('should update a product when user has "admin" role', async () => {
       const response = await request(app)
@@ -131,13 +148,15 @@ describe('Integration Tests for /api/produtos Routes', () => {
         .send({
           nome: 'Gaze Estéril (Atualizada)',
           quantidade: 125,
+          categoriaId: categoria.id,
+          fornecedorId: fornecedor.id,
+          setorId: setor.id
         });
 
       expect(response.status).toBe(200);
       expect(response.body.nome).toBe('Gaze Estéril (Atualizada)');
       expect(response.body.quantidade).toBe(125);
 
-      // Verificação extra no banco
       const productInDb = await Produto.findByPk(produtoTeste.id);
       expect(productInDb.nome).toBe('Gaze Estéril (Atualizada)');
     });
@@ -146,13 +165,17 @@ describe('Integration Tests for /api/produtos Routes', () => {
       const response = await request(app)
         .put(`/api/produtos/${produtoTeste.id}`)
         .set('Authorization', `Bearer ${leitorToken}`)
-        .send({ nome: 'Tentativa Ilegal' });
+        .send({
+          nome: 'Tentativa Ilegal',
+          categoriaId: categoria.id,
+          fornecedorId: fornecedor.id,
+          setorId: setor.id
+        });
 
       expect(response.status).toBe(403);
     });
   });
 
-  // --- Testes para a rota DELETE /api/produtos/:id ---
   describe('DELETE /api/produtos/:id', () => {
     it('should return 403 Forbidden when user does not have permission', async () => {
       const response = await request(app)
@@ -167,16 +190,15 @@ describe('Integration Tests for /api/produtos Routes', () => {
         .delete(`/api/produtos/${produtoTeste.id}`)
         .set('Authorization', `Bearer ${adminToken}`);
 
-      expect(response.status).toBe(200);// 200 No Content é uma resposta comum para DELETE
+      expect(response.status).toBe(200);
 
-      // Verificação extra: confirma que o produto foi removido do banco
       const productInDb = await Produto.findByPk(produtoTeste.id);
       expect(productInDb).toBeNull();
     });
 
     it('should return 404 Not Found when trying to delete a non-existent product', async () => {
       const response = await request(app)
-        .delete(`/api/produtos/99999`) // ID que não existe
+        .delete(`/api/produtos/99999`)
         .set('Authorization', `Bearer ${adminToken}`);
 
       expect(response.status).toBe(404);
