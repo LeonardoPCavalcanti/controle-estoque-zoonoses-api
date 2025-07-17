@@ -2,10 +2,13 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
-const app = express();
-app.use(cors());
-app.use(express.json());
+const corsOptions = {
+  origin: 'http://localhost:8080', 
+  optionsSuccessStatus: 200
+};
 
+app.use(cors(corsOptions));
+app.use(express.json());
 // Importa rotas
 const produtoRoutes = require('./routes/produto');
 const usuarioRoutes = require('./routes/usuario');
